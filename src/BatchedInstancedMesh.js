@@ -70,7 +70,6 @@ class MultiDrawRenderList {
 
 }
 
-const ID_ATTR_NAME = 'batchId';
 const _matrix = /*@__PURE__*/ new Matrix4();
 const _invMatrixWorld = /*@__PURE__*/ new Matrix4();
 const _identityMatrix = /*@__PURE__*/ new Matrix4();
@@ -236,11 +235,6 @@ class BatchedInstancedMesh extends Mesh {
 
 			}
 
-			const idArray = maxGeometryCount > 65536
-				? new Uint32Array( maxVertexCount )
-				: new Uint16Array( maxVertexCount );
-			geometry.setAttribute( ID_ATTR_NAME, new BufferAttribute( idArray, 1 ) );
-
 			this._geometryInitialized = true;
 
 		}
@@ -249,13 +243,6 @@ class BatchedInstancedMesh extends Mesh {
 
 	// Make sure the geometry is compatible with the existing combined geometry attributes
 	_validateGeometry( geometry ) {
-
-		// check that the geometry doesn't have a version of our reserved id attribute
-		if ( geometry.getAttribute( ID_ATTR_NAME ) ) {
-
-			throw new Error( `BatchedMesh: Geometry cannot use attribute "${ ID_ATTR_NAME }"` );
-
-		}
 
 		// check to ensure the geometries are using consistent attributes and indices
 		const batchGeometry = this.geometry;
@@ -266,12 +253,6 @@ class BatchedInstancedMesh extends Mesh {
 		}
 
 		for ( const attributeName in batchGeometry.attributes ) {
-
-			if ( attributeName === ID_ATTR_NAME ) {
-
-				continue;
-
-			}
 
 			if ( ! geometry.hasAttribute( attributeName ) ) {
 
@@ -472,16 +453,6 @@ class BatchedInstancedMesh extends Mesh {
 			sphere: new Sphere()
 		} );
 
-		// set the id for the geometry
-		const idAttribute = this.geometry.getAttribute( ID_ATTR_NAME );
-		for ( let i = 0; i < reservedRange.vertexCount; i ++ ) {
-
-			idAttribute.setX( reservedRange.vertexStart + i, geometryId );
-
-		}
-
-		idAttribute.needsUpdate = true;
-
 		// update the geometry
 		this.setGeometryAt( geometryId, geometry );
 
@@ -518,12 +489,6 @@ class BatchedInstancedMesh extends Mesh {
 		const vertexStart = reservedRange.vertexStart;
 		const vertexCount = reservedRange.vertexCount;
 		for ( const attributeName in batchGeometry.attributes ) {
-
-			if ( attributeName === ID_ATTR_NAME ) {
-
-				continue;
-
-			}
 
 			// copy attribute data
 			const srcAttribute = geometry.getAttribute( attributeName );

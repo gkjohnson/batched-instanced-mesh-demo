@@ -1,7 +1,7 @@
-import { BufferAttribute } from 'three';
+import { BufferAttribute, RedFormat, RedIntegerFormat, UnsignedByteType, UnsignedIntType } from 'three';
 import { BufferGeometry } from 'three';
 import { DataTexture } from 'three';
-import { FloatType, UnsignedIntType } from 'three';
+import { FloatType } from 'three';
 import { Matrix4 } from 'three';
 import { Mesh } from 'three';
 import { RGBAFormat } from 'three';
@@ -201,7 +201,7 @@ class BatchedInstancedMesh extends Mesh {
 		size = Math.ceil( size );
 
 		const indirectArray = new Uint32Array( size * size );
-		const indirectTexture = new DataTexture( indirectArray, size, size, RGBAFormat, UnsignedIntType );
+		const indirectTexture = new DataTexture( indirectArray, size, size, RedIntegerFormat, UnsignedIntType );
 
 		this._indirectTexture = indirectTexture;
     }
@@ -905,6 +905,10 @@ class BatchedInstancedMesh extends Mesh {
 
 		this._matricesTexture.dispose();
 		this._matricesTexture = null;
+
+        this._indirectTexture.dispose();
+        this._indirectTexture = null;
+
 		return this;
 
 	}
@@ -1029,7 +1033,7 @@ class BatchedInstancedMesh extends Mesh {
 						multiDrawStarts[ count ] = range.start * bytesPerElement;
 						multiDrawCounts[ count ] = range.count;
                         indirectArray[ count ] = i;
-						count ++;
+                        count ++;
 
 					}
 
@@ -1044,6 +1048,10 @@ class BatchedInstancedMesh extends Mesh {
 		this._visibilityChanged = false;
 
         material.onBeforeCompile = onBeforeCompile;
+        material.extensions = {
+            multiDraw: true,
+        };
+        material.indirectTexture = indirectTexture;
 
 	}
 

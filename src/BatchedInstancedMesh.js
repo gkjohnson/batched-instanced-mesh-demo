@@ -933,7 +933,7 @@ class BatchedInstancedMesh extends Mesh {
 
 						// get the distance from camera used for sorting
 						const z = _vector.distanceTo( _sphere.center );
-						_renderList.push( drawRanges[ i ], z, i );
+						_renderList.push( drawRanges[ info[ i ].index ], z, i );
 
 					}
 
@@ -985,7 +985,7 @@ class BatchedInstancedMesh extends Mesh {
 
 					if ( ! culled ) {
 
-						const range = drawRanges[ i ];
+						const range = drawRanges[ info[ i ].index ];
 						multiDrawStarts[ count ] = range.start * bytesPerElement;
 						multiDrawCounts[ count ] = range.count;
                         indirectArray[ count ] = i;

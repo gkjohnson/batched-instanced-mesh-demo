@@ -330,6 +330,8 @@ class BatchedInstancedMesh extends Mesh {
 
         } );
 
+        return this._info.length - 1;
+
     }
 
 	addGeometry( geometry, vertexCount = - 1, indexCount = - 1 ) {
@@ -455,7 +457,7 @@ class BatchedInstancedMesh extends Mesh {
 		// update the geometry
 		this.setGeometryAt( geometryId, geometry );
 
-		return geometryId;
+		return info.length - 1;
 
 	}
 

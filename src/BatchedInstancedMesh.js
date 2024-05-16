@@ -149,6 +149,7 @@ class BatchedMesh extends Mesh {
         // }
 		this._visibility = [];
 		this._active = [];
+        this._info = [];
 
 		this._maxGeometryCount = maxDrawCount;
 		this._maxVertexCount = maxVertexCount;
@@ -432,16 +433,22 @@ class BatchedMesh extends Mesh {
 
 		const visibility = this._visibility;
 		const active = this._active;
+        const info = this._info;
 		const matricesTexture = this._matricesTexture;
 		const matricesArray = this._matricesTexture.image.data;
-
-		// push new visibility states
-		visibility.push( true );
-		active.push( true );
 
 		// update id
 		const geometryId = this._geometryCount;
 		this._geometryCount ++;
+
+		// push new visibility states
+        info.push( {
+            visibility: true,
+            active: true,
+            index: geometryId,
+        } );
+		visibility.push( true );
+		active.push( true );
 
 		// initialize matrix information
 		_identityMatrix.toArray( matricesArray, geometryId * 16 );
@@ -595,18 +602,18 @@ class BatchedMesh extends Mesh {
 
 	}
 
-	deleteGeometry( geometryId ) {
+	deleteItem( id ) {
 
 		// Note: User needs to call optimize() afterward to pack the data.
 
 		const active = this._active;
-		if ( geometryId >= active.length || active[ geometryId ] === false ) {
+		if ( id >= active.length || active[ id ] === false ) {
 
 			return this;
 
 		}
 
-		active[ geometryId ] = false;
+		active[ id ] = false;
 		this._visibilityChanged = true;
 
 		return this;
@@ -706,7 +713,7 @@ class BatchedMesh extends Mesh {
 
 	}
 
-	setMatrixAt( geometryId, matrix ) {
+	setMatrixAt( id, matrix ) {
 
 		// @TODO: Map geometryId to index of the arrays because
 		//        optimize() can make geometryId mismatch the index
@@ -715,35 +722,35 @@ class BatchedMesh extends Mesh {
 		const matricesTexture = this._matricesTexture;
 		const matricesArray = this._matricesTexture.image.data;
 		const geometryCount = this._geometryCount;
-		if ( geometryId >= geometryCount || active[ geometryId ] === false ) {
+		if ( id >= geometryCount || active[ id ] === false ) {
 
 			return this;
 
 		}
 
-		matrix.toArray( matricesArray, geometryId * 16 );
+		matrix.toArray( matricesArray, id * 16 );
 		matricesTexture.needsUpdate = true;
 
 		return this;
 
 	}
 
-	getMatrixAt( geometryId, matrix ) {
+	getMatrixAt( id, matrix ) {
 
 		const active = this._active;
 		const matricesArray = this._matricesTexture.image.data;
 		const geometryCount = this._geometryCount;
-		if ( geometryId >= geometryCount || active[ geometryId ] === false ) {
+		if ( id >= geometryCount || active[ id ] === false ) {
 
 			return null;
 
 		}
 
-		return matrix.fromArray( matricesArray, geometryId * 16 );
+		return matrix.fromArray( matricesArray, id * 16 );
 
 	}
 
-	setVisibleAt( geometryId, value ) {
+	setVisibleAt( id, value ) {
 
 		const visibility = this._visibility;
 		const active = this._active;
@@ -752,36 +759,36 @@ class BatchedMesh extends Mesh {
 		// if the geometry is out of range, not active, or visibility state
 		// does not change then return early
 		if (
-			geometryId >= geometryCount ||
-			active[ geometryId ] === false ||
-			visibility[ geometryId ] === value
+			id >= geometryCount ||
+			active[ id ] === false ||
+			visibility[ id ] === value
 		) {
 
 			return this;
 
 		}
 
-		visibility[ geometryId ] = value;
+		visibility[ id ] = value;
 		this._visibilityChanged = true;
 
 		return this;
 
 	}
 
-	getVisibleAt( geometryId ) {
+	getVisibleAt( id ) {
 
 		const visibility = this._visibility;
 		const active = this._active;
 		const geometryCount = this._geometryCount;
 
 		// return early if the geometry is out of range or not active
-		if ( geometryId >= geometryCount || active[ geometryId ] === false ) {
+		if ( id >= geometryCount || active[ id ] === false ) {
 
 			return false;
 
 		}
 
-		return visibility[ geometryId ];
+		return visibility[ id ];
 
 	}
 

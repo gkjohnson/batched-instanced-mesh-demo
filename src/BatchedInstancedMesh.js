@@ -142,15 +142,6 @@ class BatchedInstancedMesh extends Mesh {
 		this._drawRanges = [];
 		this._reservedRanges = [];
 		this._bounds = [];
-
-        // TODO: merge into an object
-        // {
-        //   visible,
-        //   active,
-        //   geometryIndex,
-        // }
-		this._visibility = [];
-		this._active = [];
         this._info = [];
 
 		this._maxGeometryCount = maxDrawCount;
@@ -289,12 +280,12 @@ class BatchedInstancedMesh extends Mesh {
 
 		const geometryCount = this._geometryCount;
 		const boundingBox = this.boundingBox;
-		const active = this._active;
+        const info = this._info;
 
 		boundingBox.makeEmpty();
 		for ( let i = 0; i < geometryCount; i ++ ) {
 
-			if ( active[ i ] === false ) continue;
+			if ( info[ i ].active === false ) continue;
 
 			this.getMatrixAt( i, _matrix );
 			this.getBoundingBoxAt( i, _box ).applyMatrix4( _matrix );
@@ -314,12 +305,12 @@ class BatchedInstancedMesh extends Mesh {
 
 		const geometryCount = this._geometryCount;
 		const boundingSphere = this.boundingSphere;
-		const active = this._active;
+        const info = this._info;
 
 		boundingSphere.makeEmpty();
 		for ( let i = 0; i < geometryCount; i ++ ) {
 
-			if ( active[ i ] === false ) continue;
+			if ( info[ i ].active === false ) continue;
 
 			this.getMatrixAt( i, _matrix );
 			this.getBoundingSphereAt( i, _sphere ).applyMatrix4( _matrix );
@@ -328,6 +319,18 @@ class BatchedInstancedMesh extends Mesh {
 		}
 
 	}
+
+    addInstance( id ) {
+
+        this._info.push( {
+
+            visible: true,
+            active: true,
+            index: this._info[ id ].index,
+
+        } );
+
+    }
 
 	addGeometry( geometry, vertexCount = - 1, indexCount = - 1 ) {
 
@@ -416,8 +419,6 @@ class BatchedInstancedMesh extends Mesh {
 
 		}
 
-		const visibility = this._visibility;
-		const active = this._active;
         const info = this._info;
 		const matricesTexture = this._matricesTexture;
 		const matricesArray = this._matricesTexture.image.data;
@@ -428,12 +429,10 @@ class BatchedInstancedMesh extends Mesh {
 
 		// push new visibility states
         info.push( {
-            visibility: true,
+            visible: true,
             active: true,
             index: geometryId,
         } );
-		visibility.push( true );
-		active.push( true );
 
 		// initialize matrix information
 		_identityMatrix.toArray( matricesArray, geometryId * 16 );
@@ -462,7 +461,8 @@ class BatchedInstancedMesh extends Mesh {
 
 	setGeometryAt( id, geometry ) {
 
-		if ( id >= this._geometryCount ) {
+        const geometryId = this._info[ id ].index;
+		if ( geometryId >= this._geometryCount ) {
 
 			throw new Error( 'BatchedMesh: Maximum geometry count reached.' );
 
@@ -474,7 +474,7 @@ class BatchedInstancedMesh extends Mesh {
 		const hasIndex = batchGeometry.getIndex() !== null;
 		const dstIndex = batchGeometry.getIndex();
 		const srcIndex = geometry.getIndex();
-		const reservedRange = this._reservedRanges[ id ];
+		const reservedRange = this._reservedRanges[ geometryId ];
 		if (
 			hasIndex &&
 			srcIndex.count > reservedRange.indexCount ||
@@ -538,7 +538,7 @@ class BatchedInstancedMesh extends Mesh {
 		}
 
 		// store the bounding boxes
-		const bound = this._bounds[ id ];
+		const bound = this._bounds[ geometryId ];
 		if ( geometry.boundingBox !== null ) {
 
 			bound.box.copy( geometry.boundingBox );
@@ -562,12 +562,12 @@ class BatchedInstancedMesh extends Mesh {
 		}
 
 		// set drawRange count
-		const drawRange = this._drawRanges[ id ];
+		const drawRange = this._drawRanges[ geometryId ];
 		const posAttr = geometry.getAttribute( 'position' );
 		drawRange.count = hasIndex ? srcIndex.count : posAttr.count;
 		this._visibilityChanged = true;
 
-		return id;
+		return geometryId;
 
 	}
 
@@ -575,14 +575,14 @@ class BatchedInstancedMesh extends Mesh {
 
 		// Note: User needs to call optimize() afterward to pack the data.
 
-		const active = this._active;
-		if ( id >= active.length || active[ id ] === false ) {
+        const info = this._info;
+		if ( id >= info.length || info[ id ].active === false ) {
 
 			return this;
 
 		}
 
-		active[ id ] = false;
+		info[ id ].active = false;
 		this._visibilityChanged = true;
 
 		return this;
@@ -592,15 +592,16 @@ class BatchedInstancedMesh extends Mesh {
 	// get bounding box and compute it if it doesn't exist
 	getBoundingBoxAt( id, target ) {
 
-		const active = this._active;
-		if ( active[ id ] === false ) {
+        const info = this._info;
+		if ( info[ id ].active === false ) {
 
 			return null;
 
 		}
 
 		// compute bounding box
-		const bound = this._bounds[ id ];
+        const geometryId = info[ id ].index;
+		const bound = this._bounds[ geometryId ];
 		const box = bound.box;
 		const geometry = this.geometry;
 		if ( bound.boxInitialized === false ) {
@@ -609,7 +610,7 @@ class BatchedInstancedMesh extends Mesh {
 
 			const index = geometry.index;
 			const position = geometry.attributes.position;
-			const drawRange = this._drawRanges[ id ];
+			const drawRange = this._drawRanges[ geometryId ];
 			for ( let i = drawRange.start, l = drawRange.start + drawRange.count; i < l; i ++ ) {
 
 				let iv = i;
@@ -635,27 +636,28 @@ class BatchedInstancedMesh extends Mesh {
 	// get bounding sphere and compute it if it doesn't exist
 	getBoundingSphereAt( id, target ) {
 
-		const active = this._active;
-		if ( active[ id ] === false ) {
+        const info = this._info;
+		if ( info[ id ].active === false ) {
 
 			return null;
 
 		}
 
 		// compute bounding sphere
-		const bound = this._bounds[ id ];
+        const geometryId = info[ id ].index;
+		const bound = this._bounds[ geometryId ];
 		const sphere = bound.sphere;
 		const geometry = this.geometry;
 		if ( bound.sphereInitialized === false ) {
 
 			sphere.makeEmpty();
 
-			this.getBoundingBoxAt( id, _box );
+			this.getBoundingBoxAt( geometryId, _box );
 			_box.getCenter( sphere.center );
 
 			const index = geometry.index;
 			const position = geometry.attributes.position;
-			const drawRange = this._drawRanges[ id ];
+			const drawRange = this._drawRanges[ geometryId ];
 
 			let maxRadiusSq = 0;
 			for ( let i = drawRange.start, l = drawRange.start + drawRange.count; i < l; i ++ ) {
@@ -687,11 +689,10 @@ class BatchedInstancedMesh extends Mesh {
 		// @TODO: Map geometryId to index of the arrays because
 		//        optimize() can make geometryId mismatch the index
 
-		const active = this._active;
+        const info = this._info;
 		const matricesTexture = this._matricesTexture;
 		const matricesArray = this._matricesTexture.image.data;
-		const geometryCount = this._geometryCount;
-		if ( id >= geometryCount || active[ id ] === false ) {
+		if ( id >= info.length || info[ id ].active === false ) {
 
 			return this;
 
@@ -706,10 +707,9 @@ class BatchedInstancedMesh extends Mesh {
 
 	getMatrixAt( id, matrix ) {
 
-		const active = this._active;
+        const info = this._info;
 		const matricesArray = this._matricesTexture.image.data;
-		const geometryCount = this._geometryCount;
-		if ( id >= geometryCount || active[ id ] === false ) {
+		if ( id >= info.length || info[ id ].active === false ) {
 
 			return null;
 
@@ -721,23 +721,20 @@ class BatchedInstancedMesh extends Mesh {
 
 	setVisibleAt( id, value ) {
 
-		const visibility = this._visibility;
-		const active = this._active;
-		const geometryCount = this._geometryCount;
-
 		// if the geometry is out of range, not active, or visibility state
 		// does not change then return early
+        const info = this._info;
 		if (
-			id >= geometryCount ||
-			active[ id ] === false ||
-			visibility[ id ] === value
+			id >= info.length ||
+			info[ id ].active === false ||
+			info[ id ].visible === value
 		) {
 
 			return this;
 
 		}
 
-		visibility[ id ] = value;
+        info[ id ].visible = value;
 		this._visibilityChanged = true;
 
 		return this;
@@ -746,25 +743,21 @@ class BatchedInstancedMesh extends Mesh {
 
 	getVisibleAt( id ) {
 
-		const visibility = this._visibility;
-		const active = this._active;
-		const geometryCount = this._geometryCount;
-
 		// return early if the geometry is out of range or not active
-		if ( id >= geometryCount || active[ id ] === false ) {
+        const info = this._info;
+		if ( id >= info.length || info[ id ].active === false ) {
 
 			return false;
 
 		}
 
-		return visibility[ id ];
+		return info[ id ].visible;
 
 	}
 
 	raycast( raycaster, intersects ) {
 
-		const visibility = this._visibility;
-		const active = this._active;
+        const info = this._info;
 		const drawRanges = this._drawRanges;
 		const geometryCount = this._geometryCount;
 		const matrixWorld = this.matrixWorld;
@@ -788,7 +781,7 @@ class BatchedInstancedMesh extends Mesh {
 
 		for ( let i = 0; i < geometryCount; i ++ ) {
 
-			if ( ! visibility[ i ] || ! active[ i ] ) {
+			if ( ! info[ i ].visible || ! info[ i ].active ) {
 
 				continue;
 
@@ -837,8 +830,7 @@ class BatchedInstancedMesh extends Mesh {
 		this._drawRanges = source._drawRanges.map( range => ( { ...range } ) );
 		this._reservedRanges = source._reservedRanges.map( range => ( { ...range } ) );
 
-		this._visibility = source._visibility.slice();
-		this._active = source._active.slice();
+        this._info = source._info.map( inf => ( { ...inf } ) );
 		this._bounds = source._bounds.map( bound => ( {
 			boxInitialized: bound.boxInitialized,
 			box: bound.box.clone(),
@@ -893,8 +885,7 @@ class BatchedInstancedMesh extends Mesh {
 		const index = geometry.getIndex();
 		const bytesPerElement = index === null ? 1 : index.array.BYTES_PER_ELEMENT;
 
-		const active = this._active;
-		const visibility = this._visibility;
+        const info = this._info;
 		const multiDrawStarts = this._multiDrawStarts;
 		const multiDrawCounts = this._multiDrawCounts;
 		const drawRanges = this._drawRanges;
@@ -922,9 +913,9 @@ class BatchedInstancedMesh extends Mesh {
 			_invMatrixWorld.copy( this.matrixWorld ).invert();
 			_vector.setFromMatrixPosition( camera.matrixWorld ).applyMatrix4( _invMatrixWorld );
 
-			for ( let i = 0, l = visibility.length; i < l; i ++ ) {
+			for ( let i = 0, l = info.length; i < l; i ++ ) {
 
-				if ( visibility[ i ] && active[ i ] ) {
+				if ( info[ i ].visible && info[ i ].active ) {
 
 					// get the bounds in world space
 					this.getMatrixAt( i, _matrix );
@@ -977,9 +968,9 @@ class BatchedInstancedMesh extends Mesh {
 
 		} else {
 
-			for ( let i = 0, l = visibility.length; i < l; i ++ ) {
+			for ( let i = 0, l = info.length; i < l; i ++ ) {
 
-				if ( visibility[ i ] && active[ i ] ) {
+				if ( info[ i ].visible && info[ i ].active ) {
 
 					// determine whether the batched geometry is within the frustum
 					let culled = false;

@@ -1,14 +1,15 @@
-import { BufferAttribute } from '../core/BufferAttribute.js';
-import { BufferGeometry } from '../core/BufferGeometry.js';
-import { DataTexture } from '../textures/DataTexture.js';
-import { FloatType, Uint32Type } from '../constants.js';
-import { Matrix4 } from '../math/Matrix4.js';
-import { Mesh } from './Mesh.js';
-import { RGBAFormat } from '../constants.js';
-import { Box3 } from '../math/Box3.js';
-import { Sphere } from '../math/Sphere.js';
-import { Frustum } from '../math/Frustum.js';
-import { Vector3 } from '../math/Vector3.js';
+import { BufferAttribute } from 'three';
+import { BufferGeometry } from 'three';
+import { DataTexture } from 'three';
+import { FloatType, UnsignedIntType } from 'three';
+import { Matrix4 } from 'three';
+import { Mesh } from 'three';
+import { RGBAFormat } from 'three';
+import { Box3 } from 'three';
+import { Sphere } from 'three';
+import { Frustum } from 'three';
+import { Vector3 } from 'three';
+import { onBeforeCompile } from './BatchedInstancedMaterial.js';
 
 function sortOpaque( a, b ) {
 
@@ -32,7 +33,7 @@ class MultiDrawRenderList {
 
 	}
 
-	push( drawRange, z ) {
+	push( drawRange, z, index ) {
 
 		const pool = this.pool;
 		const list = this.list;
@@ -43,6 +44,7 @@ class MultiDrawRenderList {
 				start: - 1,
 				count: - 1,
 				z: - 1,
+                index: - 1,
 
 			} );
 
@@ -55,6 +57,7 @@ class MultiDrawRenderList {
 		item.start = drawRange.start;
 		item.count = drawRange.count;
 		item.z = z;
+        item.index = index;
 
 	}
 
@@ -117,7 +120,7 @@ function copyAttributeData( src, target, targetOffset = 0 ) {
 
 }
 
-class BatchedMesh extends Mesh {
+class BatchedInstancedMesh extends Mesh {
 
 	get maxGeometryCount() {
 
@@ -160,6 +163,7 @@ class BatchedMesh extends Mesh {
 		this._multiDrawCounts = new Int32Array( maxDrawCount );
 		this._multiDrawStarts = new Int32Array( maxDrawCount );
 		this._multiDrawCount = 0;
+		this._multiDrawInstances = null;
 		this._visibilityChanged = true;
 
 		// Local matrix per geometry by using data texture
@@ -197,7 +201,7 @@ class BatchedMesh extends Mesh {
 		size = Math.ceil( size );
 
 		const indirectArray = new Uint32Array( size * size );
-		const indirectTexture = new DataTexture( indirectArray, size, size, RGBAFormat, Uint32Type );
+		const indirectTexture = new DataTexture( indirectArray, size, size, RGBAFormat, UnsignedIntType );
 
 		this._indirectTexture = indirectTexture;
     }
@@ -926,6 +930,8 @@ class BatchedMesh extends Mesh {
 		const multiDrawCounts = this._multiDrawCounts;
 		const drawRanges = this._drawRanges;
 		const perObjectFrustumCulled = this.perObjectFrustumCulled;
+        const indirectTexture = this._indirectTexture;
+        const indirectArray = indirectTexture.image.data;
 
 		// prepare the frustum in the local frame
 		if ( perObjectFrustumCulled ) {
@@ -967,7 +973,7 @@ class BatchedMesh extends Mesh {
 
 						// get the distance from camera used for sorting
 						const z = _vector.distanceTo( _sphere.center );
-						_renderList.push( drawRanges[ i ], z );
+						_renderList.push( drawRanges[ i ], z, i );
 
 					}
 
@@ -993,6 +999,7 @@ class BatchedMesh extends Mesh {
 				const item = list[ i ];
 				multiDrawStarts[ count ] = item.start * bytesPerElement;
 				multiDrawCounts[ count ] = item.count;
+                indirectArray[ count ] = item.index;
 				count ++;
 
 			}
@@ -1021,6 +1028,7 @@ class BatchedMesh extends Mesh {
 						const range = drawRanges[ i ];
 						multiDrawStarts[ count ] = range.start * bytesPerElement;
 						multiDrawCounts[ count ] = range.count;
+                        indirectArray[ count ] = i;
 						count ++;
 
 					}
@@ -1031,8 +1039,11 @@ class BatchedMesh extends Mesh {
 
 		}
 
+        indirectTexture.needsUpdate = true;
 		this._multiDrawCount = count;
 		this._visibilityChanged = false;
+
+        material.onBeforeCompile = onBeforeCompile;
 
 	}
 
@@ -1044,4 +1055,4 @@ class BatchedMesh extends Mesh {
 
 }
 
-export { BatchedMesh };
+export { BatchedInstancedMesh };

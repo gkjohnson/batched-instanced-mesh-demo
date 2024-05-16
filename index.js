@@ -5,6 +5,7 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { radixSort } from 'three/addons/utils/SortUtils.js';
 import { BatchedInstancedMesh } from './src/BatchedInstancedMesh.js';
+import { estimateBytesUsed } from 'three/addons/utils/BufferGeometryUtils.js';
 
 let gui, infoEl;
 let camera, controls, scene, renderer;
@@ -24,8 +25,9 @@ const scale = new THREE.Vector3();
 const MAX_GEOMETRY_COUNT = 20000;
 
 const api = {
-    count: 256,
+    useInstances: true,
 
+    count: 256,
     sortObjects: true,
     perObjectFrustumCulled: true,
     opacity: 1,
@@ -108,8 +110,18 @@ function initMesh() {
     cleanup();
 
     const geometryCount = api.count;
-    const vertexCount = api.count * 512;
-    const indexCount = api.count * 1024;
+    let vertexCount, indexCount;
+    if ( api.useInstances ) {
+
+        vertexCount = 3 * 200;
+        indexCount = 3 * 700;
+
+    } else {
+
+        vertexCount = api.count * 200;
+        indexCount = api.count * 700;
+
+    }
 
     const euler = new THREE.Euler();
     const matrix = new THREE.Matrix4();
@@ -123,7 +135,17 @@ function initMesh() {
 
     for ( let i = 0; i < api.count; i ++ ) {
 
-        const id = mesh.addGeometry( geometries[ i % geometries.length ] );
+        let id;
+        if ( i < geometries.length || ! api.useInstances ) {
+        
+            id = mesh.addGeometry( geometries[ i % geometries.length ] );
+
+        } else {
+
+            id = mesh.addInstance( i % geometries.length );
+
+        }
+
         mesh.setMatrixAt( id, randomizeMatrix( matrix ) );
 
         const rotationMatrix = new THREE.Matrix4();
@@ -172,6 +194,7 @@ function init() {
     // gui
 
     gui = new GUI();
+    gui.add( api, 'useInstances' ).onChange( initMesh );
     gui.add( api, 'count', 1, MAX_GEOMETRY_COUNT ).step( 1 ).onChange( initMesh );
     gui.add( api, 'opacity', 0, 1 ).onChange( v => {
 
@@ -264,6 +287,14 @@ function animateMeshes() {
 
 }
 
+function getMemoryUsed( geometry ) {
+
+    const unit = 'MB';
+    const value = estimateBytesUsed( geometry ) * 1e-6;
+    return parseFloat( value.toFixed( 3 ) ) + unit;
+
+}
+
 function render() {
 
     mesh.sortObjects = api.sortObjects;
@@ -274,8 +305,8 @@ function render() {
 
     infoEl.innerText = 
         `Draw Calls     : ${ renderer.info.render.calls }\n` +
-        `Geometry Count : ${ mesh._geometryCount }`
-        ;
+        `Geometry Count : ${ mesh._geometryCount }\n` +
+        `Geometry Size  : ~${ getMemoryUsed( mesh.geometry ) }`;
 
 
 

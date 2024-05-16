@@ -326,7 +326,7 @@ class BatchedInstancedMesh extends Mesh {
 
             visible: true,
             active: true,
-            index: this._info[ id ].index,
+            geometryIndex: this._info[ id ].geometryIndex,
 
         } );
 
@@ -431,7 +431,7 @@ class BatchedInstancedMesh extends Mesh {
         info.push( {
             visible: true,
             active: true,
-            index: geometryId,
+            geometryIndex: geometryId,
         } );
 
 		// initialize matrix information
@@ -461,7 +461,7 @@ class BatchedInstancedMesh extends Mesh {
 
 	setGeometryAt( id, geometry ) {
 
-        const geometryId = this._info[ id ].index;
+        const geometryId = this._info[ id ].geometryIndex;
 		if ( geometryId >= this._geometryCount ) {
 
 			throw new Error( 'BatchedMesh: Maximum geometry count reached.' );
@@ -600,7 +600,7 @@ class BatchedInstancedMesh extends Mesh {
 		}
 
 		// compute bounding box
-        const geometryId = info[ id ].index;
+        const geometryId = info[ id ].geometryIndex;
 		const bound = this._bounds[ geometryId ];
 		const box = bound.box;
 		const geometry = this.geometry;
@@ -644,7 +644,7 @@ class BatchedInstancedMesh extends Mesh {
 		}
 
 		// compute bounding sphere
-        const geometryId = info[ id ].index;
+        const geometryId = info[ id ].geometryIndex;
 		const bound = this._bounds[ geometryId ];
 		const sphere = bound.sphere;
 		const geometry = this.geometry;
@@ -933,7 +933,7 @@ class BatchedInstancedMesh extends Mesh {
 
 						// get the distance from camera used for sorting
 						const z = _vector.distanceTo( _sphere.center );
-						_renderList.push( drawRanges[ info[ i ].index ], z, i );
+						_renderList.push( drawRanges[ info[ i ].geometryIndex ], z, i );
 
 					}
 
@@ -985,7 +985,7 @@ class BatchedInstancedMesh extends Mesh {
 
 					if ( ! culled ) {
 
-						const range = drawRanges[ info[ i ].index ];
+						const range = drawRanges[ info[ i ].geometryIndex ];
 						multiDrawStarts[ count ] = range.start * bytesPerElement;
 						multiDrawCounts[ count ] = range.count;
                         indirectArray[ count ] = i;

@@ -79,11 +79,29 @@ function initGeometries() {
 
 function createMaterial() {
 
-    if ( ! material ) {
+    if ( material ) {
 
-        material = new THREE.MeshNormalMaterial();
+        material.dispose();
+        material = null;
 
     }
+
+    material = new THREE.MeshNormalMaterial();
+
+    const opacity = api.opacity;
+    if ( opacity < 1 ) {
+
+        material.transparent = true;
+        material.depthWrite = false;
+
+    } else {
+
+        material.transparent = false;
+        material.depthWrite = true;
+
+    }
+
+    material.opacity = opacity;
 
     return material;
 
@@ -110,22 +128,24 @@ function initMesh() {
     cleanup();
 
     const geometryCount = api.count;
-    let vertexCount, indexCount;
+    let vertexCount, indexCount, cons;
     if ( api.useInstances ) {
 
         vertexCount = 3 * 200;
         indexCount = 3 * 700;
+        cons = BatchedInstancedMesh;
 
     } else {
 
         vertexCount = api.count * 200;
         indexCount = api.count * 700;
+        cons = THREE.BatchedMesh;
 
     }
 
     const euler = new THREE.Euler();
     const matrix = new THREE.Matrix4();
-    mesh = new BatchedInstancedMesh( geometryCount, vertexCount, indexCount, createMaterial() );
+    mesh = new cons( geometryCount, vertexCount, indexCount, createMaterial() );
     mesh.userData.rotationSpeeds = [];
 
     // disable full-object frustum culling since all of the objects can be dynamic.
@@ -226,7 +246,7 @@ function init() {
 
 //
 
-function sortFunction( list, camera ) {
+function sortFunction( list ) {
 
     // initialize options
     this._options = this._options || {
@@ -237,10 +257,22 @@ function sortFunction( list, camera ) {
     const options = this._options;
     options.reversed = this.material.transparent;
 
-    // convert depth to unsigned 32 bit range
-    const factor = ( 2 ** 32 - 1 ) / camera.far; // UINT32_MAX / max_depth
+    let minZ = Infinity;
+    let maxZ = - Infinity;
     for ( let i = 0, l = list.length; i < l; i ++ ) {
 
+        const z = list[ i ].z;
+        if ( z > maxZ ) maxZ = z;
+        if ( z < minZ ) minZ = z;
+
+    }
+
+    // convert depth to unsigned 32 bit range
+    const depthDelta = maxZ - minZ;
+    const factor = ( 2 ** 32 - 1 ) / depthDelta; // UINT32_MAX / z range
+    for ( let i = 0, l = list.length; i < l; i ++ ) {
+
+        list[ i ].z -= minZ;
         list[ i ].z *= factor;
 
     }
@@ -304,10 +336,10 @@ function render() {
     renderer.render( scene, camera );
 
     infoEl.innerText = 
-        `Draw Calls     : ${ renderer.info.render.calls }\n` +
-        `Geometry Count : ${ mesh._geometryCount }\n` +
-        `Geometry Size  : ~${ getMemoryUsed( mesh.geometry ) }`;
-
-
+        `Draw Calls       : ${ renderer.info.render.calls }\n` +
+        `Item Count       : ${ mesh instanceof THREE.BatchedMesh ? mesh._geometryCount : mesh._drawInfo.length }\n` +
+        `Renderered Count : ${ mesh._multiDrawCount }\n` +
+        `Geometry Count   : ${ mesh._geometryCount }\n` +
+        `Geometry Size    : ~${ getMemoryUsed( mesh.geometry ) }`;
 
 }

@@ -40,10 +40,10 @@ export function onBeforeCompile( shader ) {
             `,
         )
         .replace(
-            '#include <batching_vertex>',
+            'void main() {',
             /* glsl */`
+            void main() {
                 float batchId = getIndirectIndex( gl_DrawID );
-                #include <batching_vertex>
             `,
         );
 

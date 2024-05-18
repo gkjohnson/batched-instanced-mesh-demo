@@ -10,6 +10,7 @@ import { Sphere } from 'three';
 import { Frustum } from 'three';
 import { Vector3 } from 'three';
 import { onBeforeCompile } from './BatchedInstancedMaterial.js';
+import { ColorManagement } from 'three';
 
 function sortOpaque( a, b ) {
 
@@ -161,6 +162,7 @@ class BatchedInstancedMesh extends Mesh {
 		// Local matrix per geometry by using data texture
 		this._matricesTexture = null;
         this._indirectTexture = null;
+		this._colorsTexture = null;
 
 		this._initMatricesTexture();
         this._initIndirectTexture();
@@ -197,6 +199,19 @@ class BatchedInstancedMesh extends Mesh {
 
 		this._indirectTexture = indirectTexture;
     }
+
+	_initColorsTexture() {
+
+		let size = Math.sqrt( this._maxGeometryCount );
+		size = Math.ceil( size );
+
+		const colorsArray = new Float32Array( size * size * 4 ).fill( 1 ); // 4 floats per RGBA pixel
+		const colorsTexture = new DataTexture( colorsArray, size, size, RGBAFormat, FloatType );
+		colorsTexture.colorSpace = ColorManagement.workingColorSpace;
+
+		this._colorsTexture = colorsTexture;
+
+	}
 
 	_initializeGeometry( reference ) {
 
@@ -332,8 +347,15 @@ class BatchedInstancedMesh extends Mesh {
 
         } );
 
-        return this._drawInfo.length - 1;
+		// initialize the matrix
+		const drawId = this._drawInfo.length - 1;
+		const matricesTexture = this._matricesTexture;
+		const matricesArray = matricesTexture.image.data;
+		_identityMatrix.toArray( matricesArray, drawId * 16 );
+		matricesTexture.needsUpdate = true;
 
+		return drawId;
+		
     }
 
 	addGeometry( geometry, vertexCount = - 1, indexCount = - 1 ) {
@@ -423,24 +445,9 @@ class BatchedInstancedMesh extends Mesh {
 
 		}
 
-        const drawInfo = this._drawInfo;
-		const matricesTexture = this._matricesTexture;
-		const matricesArray = this._matricesTexture.image.data;
-
 		// update id
 		const geometryId = this._geometryCount;
 		this._geometryCount ++;
-
-		// push new visibility states
-        drawInfo.push( {
-            visible: true,
-            active: true,
-            geometryIndex: geometryId,
-        } );
-
-		// initialize matrix information
-		_identityMatrix.toArray( matricesArray, geometryId * 16 );
-		matricesTexture.needsUpdate = true;
 
 		// add the reserved range and draw range objects
 		reservedRanges.push( reservedRange );
@@ -456,10 +463,25 @@ class BatchedInstancedMesh extends Mesh {
 			sphere: new Sphere()
 		} );
 
-		// update the geometry
-		this.setGeometryAt( geometryId, geometry );
+		// push new draw info states
+		const drawInfo = this._drawInfo;
+		const matricesTexture = this._matricesTexture;
+		const matricesArray = this._matricesTexture.image.data;
+		const drawId = drawInfo.length;
+		drawInfo.push( {
+			visible: true,
+			active: true,
+			geometryIndex: geometryId,
+		} );
 
-		return drawInfo.length - 1;
+		// initialize matrix information
+		_identityMatrix.toArray( matricesArray, drawId * 16 );
+		matricesTexture.needsUpdate = true;
+		
+		// update the geometry
+		this.setGeometryAt( drawId, geometry );
+
+		return drawId;
 
 	}
 
@@ -698,6 +720,8 @@ class BatchedInstancedMesh extends Mesh {
 		const matricesArray = this._matricesTexture.image.data;
 		if ( id >= drawInfo.length || drawInfo[ id ].active === false ) {
 
+		console.log('FAIL')
+
 			return this;
 
 		}
@@ -715,11 +739,54 @@ class BatchedInstancedMesh extends Mesh {
 		const matricesArray = this._matricesTexture.image.data;
 		if ( id >= drawInfo.length || drawInfo[ id ].active === false ) {
 
+			console.log('FAIL')
+
 			return null;
 
 		}
 
 		return matrix.fromArray( matricesArray, id * 16 );
+
+	}
+
+	setColorAt( id, color ) {
+
+		if ( this._colorsTexture === null ) {
+
+			this._initColorsTexture();
+
+		}
+
+		// @TODO: Map id to index of the arrays because
+		//        optimize() can make id mismatch the index
+
+		const colorsTexture = this._colorsTexture;
+		const colorsArray = this._colorsTexture.image.data;
+        const drawInfo = this._drawInfo;
+		if ( id >= drawInfo.length || drawInfo[ id ].active === false ) {
+
+			return this;
+
+		}
+
+		color.toArray( colorsArray, id * 4 );
+		colorsTexture.needsUpdate = true;
+
+		return this;
+
+	}
+
+	getColorAt( id, color ) {
+
+		const colorsArray = this._colorsTexture.image.data;
+        const drawInfo = this._drawInfo;
+		if ( id >= drawInfo.length || drawInfo[ id ].active === false ) {
+
+			return null;
+
+		}
+
+		return color.fromArray( colorsArray, id * 4 );
 
 	}
 
@@ -763,7 +830,6 @@ class BatchedInstancedMesh extends Mesh {
 
         const drawInfo = this._drawInfo;
 		const drawRanges = this._drawRanges;
-		const geometryCount = this._geometryCount;
 		const matrixWorld = this.matrixWorld;
 		const batchGeometry = this.geometry;
 
@@ -783,7 +849,7 @@ class BatchedInstancedMesh extends Mesh {
 
 		}
 
-		for ( let i = 0; i < geometryCount; i ++ ) {
+		for ( let i = 0, l = drawInfo.length; i < l; i ++ ) {
 
 			if ( ! drawInfo[ i ].visible || ! drawInfo[ i ].active ) {
 
@@ -791,7 +857,8 @@ class BatchedInstancedMesh extends Mesh {
 
 			}
 
-			const drawRange = drawRanges[ i ];
+			const geometryId = drawInfo[ i ].geometryIndex;
+			const drawRange = drawRanges[ geometryId ];
 			_mesh.geometry.setDrawRange( drawRange.start, drawRange.count );
 
 			// ge the intersects

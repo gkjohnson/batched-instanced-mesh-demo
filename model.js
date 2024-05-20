@@ -99,11 +99,7 @@ async function init() {
 
         if ( c.isMesh ) {
 
-            // const hash = `${ bufferToHash( c.geometry.index.array ) }_${ bufferToHash( c.geometry.attributes.position.array ) }`;
-
-            c.geometry.computeBoundingBox();
-
-            const hash = [ ...c.geometry.boundingBox.min, ...c.geometry.boundingBox.max ].map( n => n.toFixed( 2 ) ).join();
+            const hash = `${ bufferToHash( c.geometry.index.array ) }_${ bufferToHash( c.geometry.attributes.position.array ) }`;
             count[ hash ] = count[ hash ] || 0;
             count[ hash ] ++;
 

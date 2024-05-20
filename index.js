@@ -189,7 +189,7 @@ function init() {
 
     // camera
 
-    camera = new THREE.PerspectiveCamera( 70, width / height, 1, 100 );
+    camera = new THREE.PerspectiveCamera( 70, width / height, 1, 1000 );
     camera.position.z = 30;
 
     // renderer

@@ -98,7 +98,7 @@ async function init() {
 
         if ( c.isMesh ) {
 
-            const hash = c.geometry.index.array.toString() + c.geometry.attributes.position.array.toString();// `${ bufferToHash( c.geometry.index.array ) }_${ bufferToHash( c.geometry.attributes.position.array ) }`;
+            const hash = `${ bufferToHash( c.geometry.index.array ) }_${ bufferToHash( c.geometry.attributes.position.array ) }`;
             count[ hash ] = count[ hash ] || 0;
             count[ hash ] ++;
 
@@ -145,6 +145,8 @@ async function init() {
     gui.add( params, 'BatchedMesh' );
     gui.add( params, 'sortObjects' );
     gui.add( params, 'perObjectFrustumCulled' );
+
+    onWindowResize();
 
     render();
 
@@ -194,6 +196,7 @@ function render() {
         `Total Meshes            : ${ totalMeshes }\n` +
         `Total Instances         : ${ totalInstances }\n` +
         `Total Shared Geometries : ${ sharedGeometries }\n` +
+        `Drawn Instances         : ${ params.BatchedMesh ? batchedMesh._multiDrawCount : '--' }\n` +
         `Frame Time              : ${ rollingFrameTime.toFixed( 2 ) }ms\n`;
 
 }

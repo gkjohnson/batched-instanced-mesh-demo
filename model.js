@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { estimateBytesUsed } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { BatchedInstancedMesh } from './src/BatchedInstancedMesh.js';
@@ -191,12 +192,24 @@ function render() {
     if ( totalFrames < 30 ) totalFrames ++;
     rollingFrameTime += ( delta - rollingFrameTime ) / totalFrames;
 
+    let bytes = 0;
+    scene.traverse( c => {
+
+        if ( c.geometry ) {
+
+            bytes += estimateBytesUsed( c.geometry );
+
+        }
+
+    } );
+
     infoEl.innerText =
         `Draw Calls              : ${ renderer.info.render.calls }\n` +
         `Total Meshes            : ${ totalMeshes }\n` +
         `Total Instances         : ${ totalInstances }\n` +
         `Total Shared Geometries : ${ sharedGeometries }\n` +
         `Drawn Instances         : ${ params.BatchedMesh ? batchedMesh._multiDrawCount : '--' }\n` +
+        `Geometry Memory         : ${ ( bytes * 1e-6 ).toFixed( 2 ) }MB\n` +
         `Frame Time              : ${ rollingFrameTime.toFixed( 2 ) }ms\n`;
 
 }

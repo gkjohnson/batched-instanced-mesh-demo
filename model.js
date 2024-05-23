@@ -5,7 +5,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { estimateBytesUsed } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-import { BatchedInstancedMesh } from './src/BatchedInstancedMesh.js';
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
 
 const ENV_URL = 'https://raw.githubusercontent.com/gkjohnson/3d-demo-data/master/hdri/leadenhall_market_1k.hdr';
@@ -88,7 +87,7 @@ async function init() {
     box.setFromObject( model );
     box.getCenter( model.position ).multiplyScalar( - 1 );
 
-    batchedMesh = new BatchedInstancedMesh( 1000, 35000, 55000, new THREE.MeshStandardMaterial() );
+    batchedMesh = new THREE.BatchedMesh( 1000, 35000, 55000, new THREE.MeshStandardMaterial() );
     const count = {};
     const idMap = {};
 
@@ -105,23 +104,19 @@ async function init() {
 
             totalMeshes ++;
 
-            let id;
-            if ( hash in idMap ) {
+            if ( ! ( hash in idMap ) ) {
 
-                id = batchedMesh.addInstance( idMap[ hash ] );
-
-            } else {
-
-                id = batchedMesh.addGeometry( c.geometry );
-                idMap[ hash ] = id;
+                idMap[ hash ] = batchedMesh.addGeometry( c.geometry );
 
                 totalVerts += c.geometry.attributes.position.count;
                 totalIndex += c.geometry.index.count;
 
             }
 
-            batchedMesh.setMatrixAt( id, c.matrixWorld );
-            batchedMesh.setColorAt( id, c.material.color );
+            const instanceId = batchedMesh.addInstance( idMap[ hash ] );
+
+            batchedMesh.setMatrixAt( instanceId, c.matrixWorld );
+            batchedMesh.setColorAt( instanceId, c.material.color );
 
         }
 

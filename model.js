@@ -8,7 +8,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
 
 const ENV_URL = 'https://raw.githubusercontent.com/gkjohnson/3d-demo-data/master/hdri/leadenhall_market_1k.hdr';
-const GLTF_URL = 'https://raw.githubusercontent.com/gkjohnson/three-mesh-bvh/master/example/models/dungeon_low_poly_game_level_challenge/scene.gltf';
+const GLTF_URL = 'https://raw.githubusercontent.com/gkjohnson/3d-demo-data/main/models/dungeon-warkarma/scene.gltf';
 let camera, scene, renderer, infoEl;
 let model, batchedMesh;
 let rollingFrameTime = 0;
